@@ -5,10 +5,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"text/template"
 	"tmplexec/tools"
 
-	"github.com/Masterminds/sprig"
+	"github.com/iancoleman/strcase"
+	"github.com/jinzhu/inflection"
 	"github.com/spf13/cobra"
 )
 
@@ -57,7 +59,34 @@ func init() {
 	rootCmd.Flags().StringVarP(&outDir, "output", "o", "out", "output dir for executed templated")
 	rootCmd.Flags().BoolVar(&goimports, "goimports", false, "use to run goimports -w on generated files")
 
-	funcMap = sprig.TxtFuncMap()
+	// cq-provider-yandex specific functions
+	funcMap = template.FuncMap{
+		"together": func(s string) string {
+			return strings.ToLower(strcase.ToCamel(s))
+		},
+		"snake":  strcase.ToSnake,
+		"camel":  strcase.ToCamel,
+		"kebab":  strcase.ToKebab,
+		"plural": inflection.Plural,
+		"join":   func(sep string, elems []string) string { return strings.Join(elems, sep) },
+		"asFqn": func(names []string) []string {
+			if len(names) == 0 {
+				return names
+			}
+			for i := 0; i < len(names)-1; i++ {
+				names[i] = inflection.Singular(names[i])
+			}
+			names[len(names)-1] = inflection.Plural(names[len(names)-1])
+			return names
+		},
+		"replaceSymmetricKey": func(resource string) string {
+			if resource == "SymmetricKey" {
+				return "Key"
+			} else {
+				return resource
+			}
+		},
+	}
 }
 
 func Execute() {
